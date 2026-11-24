@@ -289,9 +289,12 @@ def regenerate_invite(public_id):
 def detail(public_id):
     ev = load_visible_event(public_id)
     db = get_db()
+    # останні 500 коментарів (найновіші не губляться), показуємо в хронологічному порядку
     comments = db.execute(
-        """SELECT c.id, c.body, c.created_at, c.user_id, u.name FROM comments c
-           JOIN users u ON u.id = c.user_id WHERE c.event_id = ? ORDER BY c.id ASC LIMIT 500""",
+        """SELECT * FROM (
+             SELECT c.id, c.body, c.created_at, c.user_id, u.name FROM comments c
+             JOIN users u ON u.id = c.user_id WHERE c.event_id = ? ORDER BY c.id DESC LIMIT 500
+           ) ORDER BY id ASC""",
         (ev["id"],),
     ).fetchall()
     is_author = g.user is not None and g.user["id"] == ev["author_id"]

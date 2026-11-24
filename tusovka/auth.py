@@ -13,7 +13,7 @@ bp = Blueprint("auth", __name__)
 ph = PasswordHasher()
 _DUMMY_HASH = ph.hash("dummy-password-for-timing")
 
-EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$")
+EMAIL_RE = re.compile(r"^[^@\s\x00-\x1f\x7f]{1,64}@[^@\s\x00-\x1f\x7f]+\.[^@\s\x00-\x1f\x7f]{2,}$")
 
 
 def _validate_register(form):
