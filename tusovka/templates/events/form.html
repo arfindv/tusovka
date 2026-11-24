@@ -37,6 +37,7 @@
         <label class="check"><input type="checkbox" name="remove_cover" value="1"> Прибрати обкладинку</label>
       </div>
     {% endif %}
+    {% if errors and not errors.get('cover') %}<p class="hint">Якщо ви обирали файл — оберіть його ще раз.</p>{% endif %}
     <input id="cover" name="cover" type="file" accept="image/jpeg,image/png,image/webp" {{ invalid(errors, 'cover') }}>
     {{ field_error(errors, 'cover') }}
 

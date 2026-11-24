@@ -44,6 +44,8 @@
           <p class="notice">{{ icon('clock') }} Подія вже почалася — запис закрито.</p>
         {% elif not g.user %}
           <a class="btn btn-primary btn-block btn-lg" href="{{ url_for('auth.login', next=event_link(ev)) }}">Увійдіть, щоб записатися</a>
+        {% elif is_author and not going %}
+          <p class="notice">{{ icon('spark') }} Ви організатор цієї події</p>
         {% elif going %}
           <p class="notice notice-ok">{{ icon('check') }} Ви йдете на цю подію</p>
           <form method="post" action="{{ url_for('events.leave', public_id=ev.public_id) }}">
@@ -69,6 +71,7 @@
           {% if invite_url %}
             <label class="label" for="invite-link">{{ icon('link') }} Посилання-запрошення</label>
             <input id="invite-link" class="copy" type="text" readonly value="{{ invite_url }}">
+            <button class="btn btn-ghost btn-block btn-sm" type="button" data-copy="#invite-link" hidden>{{ icon('link') }} Скопіювати посилання</button>
             <p class="hint">Подію бачать лише ті, хто має це посилання.</p>
             <form method="post" action="{{ url_for('events.regenerate_invite', public_id=ev.public_id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

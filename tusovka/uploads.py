@@ -8,7 +8,7 @@ from flask import current_app
 from PIL import Image, ImageOps
 
 MAX_COVER_BYTES = 5 * 1024 * 1024
-MAX_PIXELS = 40_000_000
+MAX_PIXELS = 25_000_000  # ~100 МБ у пам'яті на декодування — більше не приймаємо
 MAX_SIDE = 1600
 ALLOWED = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}
 COVER_NAME_RE = re.compile(r"^[0-9a-f]{32}\.(jpg|png|webp)$")

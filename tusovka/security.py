@@ -93,6 +93,8 @@ def safe_next(target):
     """Лише відносні шляхи цього сайту — без open redirect."""
     if not target or not isinstance(target, str):
         return None
+    if len(target) > 512 or any(ord(ch) < 0x21 or ord(ch) == 0x7F for ch in target):
+        return None
     if not target.startswith("/") or target.startswith("//") or "\\" in target:
         return None
     parsed = urlparse(target)
@@ -162,6 +164,13 @@ def rate_limit(bucket, limit, window, per_user=False):
         abort(429)
 
 
+def rate_limit_global(key, limit, window):
+    if not current_app.config.get("RATELIMIT_ENABLED", True):
+        return
+    if not limiter.hit(f"global:{key}", limit, window):
+        abort(429)
+
+
 # ---------- заголовки ----------
 
 def set_security_headers(resp):
@@ -176,6 +185,7 @@ def set_security_headers(resp):
     resp.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     if current_app.config.get("SESSION_COOKIE_SECURE"):
         resp.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    if g.get("user") is not None:
+    # HTML не кешуємо ніде (приватні сторінки, токени запрошень, CSRF-токени у формах)
+    if g.get("user") is not None or resp.mimetype == "text/html":
         resp.headers["Cache-Control"] = "no-store"
     return resp

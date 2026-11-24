@@ -46,17 +46,35 @@ def _load_dotenv(path=os.path.join(PROJECT_ROOT, ".env")):
             os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
+def _dev_secret(instance_path):
+    os.makedirs(instance_path, exist_ok=True)
+    path = os.path.join(instance_path, "dev_secret_key")
+    try:
+        with open(path, encoding="ascii") as fh:
+            value = fh.read().strip()
+        if len(value) >= 32:
+            return value
+    except OSError:
+        pass
+    value = secrets.token_hex(32)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="ascii") as fh:
+        fh.write(value)
+    return value
+
+
 def create_app(test_config=None):
     _load_dotenv()
     app = Flask(__name__, instance_relative_config=True)
     env = os.environ.get("TUSOVKA_ENV", "development")
     production = env == "production"
 
-    secret = os.environ.get("SECRET_KEY", "")
+    secret = os.environ.get("SECRET_KEY", "").strip()
     if not secret:
         if production:
             raise RuntimeError("SECRET_KEY must be set in production")
-        secret = secrets.token_hex(32)  # dev: випадковий ключ на кожен запуск
+        # dev: випадковий ключ, збережений в instance/ (не в git) — сесії переживають перезапуск
+        secret = _dev_secret(app.instance_path)
     elif len(secret) < 32:
         raise RuntimeError("SECRET_KEY must be at least 32 characters")
 

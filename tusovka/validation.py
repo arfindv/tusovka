@@ -68,7 +68,7 @@ def validate_event_form(form, *, current_participants=0):
     else:
         now = utcnow()
         if starts_at <= now + timedelta(minutes=5):
-            errors["starts_at"] = "Подія має бути в майбутньому."
+            errors["starts_at"] = "Подія має починатися щонайменше через 5 хвилин."
         elif starts_at > now + timedelta(days=365 * MAX_YEARS_AHEAD):
             errors["starts_at"] = f"Не пізніше ніж за {MAX_YEARS_AHEAD} роки від сьогодні."
 
@@ -88,10 +88,10 @@ def validate_event_form(form, *, current_participants=0):
         errors["visibility"] = "Оберіть тип події."
 
     values = {
-        "title": title,
-        "description": description,
-        "starts_at": raw_dt if isinstance(raw_dt, str) else "",
-        "capacity": raw_capacity,
+        "title": title[:TITLE_MAX + 50],
+        "description": description[:DESCRIPTION_MAX + 50],
+        "starts_at": raw_dt[:32] if isinstance(raw_dt, str) else "",
+        "capacity": raw_capacity[:12],
         "visibility": visibility if visibility in ("public", "private") else "public",
     }
     cleaned = {

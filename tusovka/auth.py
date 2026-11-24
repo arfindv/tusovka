@@ -6,36 +6,65 @@ from argon2.exceptions import InvalidHashError, VerificationError
 from flask import Blueprint, flash, g, redirect, render_template, request, url_for
 
 from .db import get_db
-from .security import login_user, logout_user, now_db, rate_limit, safe_next
+from .security import login_user, logout_user, now_db, rate_limit, rate_limit_global, safe_next
 from .validation import clean_text
 
 bp = Blueprint("auth", __name__)
 ph = PasswordHasher()
 _DUMMY_HASH = ph.hash("dummy-password-for-timing")
 
-EMAIL_RE = re.compile(r"^[^@\s\x00-\x1f\x7f]{1,64}@[^@\s\x00-\x1f\x7f]+\.[^@\s\x00-\x1f\x7f]{2,}$")
+# Частини домену не перетинаються (крапка не входить у [^...]), тож регулярка лінійна — без ReDoS.
+_ATOM = r"[^@\s.\x00-\x1f\x7f]+"
+EMAIL_RE = re.compile(rf"^[^@\s\x00-\x1f\x7f]{{1,64}}@{_ATOM}(?:\.{_ATOM})+$")
+EMAIL_MAX = 254
+NAME_MAX = 50
+PASSWORD_MIN, PASSWORD_MAX = 8, 128
+COMMON_PASSWORDS = {
+    "password", "password1", "password123", "qwerty123", "qwertyuiop", "12345678", "123456789",
+    "1234567890", "11111111", "00000000", "iloveyou", "admin123", "administrator", "letmein1",
+    "welcome1", "abc12345", "qwerty12", "1q2w3e4r", "1qaz2wsx", "zaq12wsx", "passw0rd", "p@ssw0rd",
+    "йцукенгш", "пароль123", "aaaaaaaa", "asdfghjk", "superman", "football", "baseball",
+}
+
+
+def valid_email(email):
+    # спершу довжина, потім регулярка: величезний рядок не дійде до regex
+    return isinstance(email, str) and 3 <= len(email) <= EMAIL_MAX and EMAIL_RE.match(email) is not None
+
+
+def password_problem(password, email):
+    if len(password) < PASSWORD_MIN:
+        return f"Пароль — щонайменше {PASSWORD_MIN} символів."
+    if len(password) > PASSWORD_MAX:
+        return f"Пароль — не довше {PASSWORD_MAX} символів."
+    low = password.lower()
+    if (low in COMMON_PASSWORDS or len(set(password)) < 4 or low == email
+            or low == email.split("@")[0]):
+        return "Пароль надто простий — його легко вгадати."
+    if not (any(ch.isalpha() for ch in password) and any(ch.isdigit() for ch in password)):
+        return "Пароль має містити хоча б одну літеру й одну цифру."
+    return None
 
 
 def _validate_register(form):
     errors = {}
-    email = (form.get("email") or "").strip().lower()
-    name = clean_text(form.get("name"))
+    raw_email = form.get("email") or ""
+    raw_name = form.get("name") or ""
     password = form.get("password") or ""
     password2 = form.get("password2") or ""
+    email = raw_email.strip().lower() if len(raw_email) <= EMAIL_MAX + 10 else ""
+    name = clean_text(raw_name[:NAME_MAX * 4])
 
-    if not EMAIL_RE.match(email) or len(email) > 254:
+    if not valid_email(email):
         errors["email"] = "Вкажіть коректний email."
-    if not (2 <= len(name) <= 50):
-        errors["name"] = "Ім'я — від 2 до 50 символів."
-    if len(password) < 8:
-        errors["password"] = "Пароль — щонайменше 8 символів."
-    elif len(password) > 128:
-        errors["password"] = "Пароль — не довше 128 символів."
-    elif password.strip() == "" or password.lower() == email:
-        errors["password"] = "Пароль надто простий."
+    if not (2 <= len(name) <= NAME_MAX):
+        errors["name"] = f"Ім'я — від 2 до {NAME_MAX} символів."
+    problem = password_problem(password, email)
+    if problem:
+        errors["password"] = problem
     if password != password2:
         errors["password2"] = "Паролі не збігаються."
-    return {"email": email, "name": name}, password, errors
+    return {"email": email[:EMAIL_MAX], "name": name[:NAME_MAX]}, password, errors
 
 
 @bp.route("/register", methods=["GET", "POST"])
@@ -76,6 +105,8 @@ def login():
         # загальний ліміт на IP (спільний NAT) + жорсткий на пару IP+email проти підбору пароля
         rate_limit("login", 60, 900)
         rate_limit(f"login-email:{email}", 10, 900)
+        # розподілений підбір з багатьох IP на один акаунт
+        rate_limit_global(f"login-account:{email}", 50, 900)
         row = get_db().execute(
             "SELECT id, password_hash FROM users WHERE email = ?", (email,)
         ).fetchone()

@@ -334,6 +334,9 @@ def join(public_id):
             abort(404)
         if row["starts_at"] <= now_db():
             msg = ("Подія вже почалася — записатися не можна.", "error")
+        elif ev["author_id"] == g.user["id"]:
+            # організатор не займає місце, призначене для гостей
+            msg = ("Ви організатор цієї події — місце вам не потрібне.", "info")
         elif db.execute(
             "SELECT 1 FROM rsvps WHERE event_id = ? AND user_id = ?", (ev["id"], g.user["id"])
         ).fetchone():
@@ -396,6 +399,8 @@ def add_comment(public_id):
 @bp.route("/e/<public_id>/comments/<int:comment_id>/delete", methods=["POST"])
 @login_required
 def delete_comment(public_id, comment_id):
+    if comment_id > 2**62:  # SQLite INTEGER — 64 біти; більші числа не можуть існувати
+        abort(404)
     ev = load_visible_event(public_id)
     db = get_db()
     row = db.execute(
@@ -417,15 +422,19 @@ def delete_comment(public_id, comment_id):
 @login_required
 def profile():
     db = get_db()
+    now = now_db()
+    # спершу майбутні (найближчі зверху), потім минулі (найсвіжіші зверху)
+    order = """ORDER BY CASE WHEN e.starts_at > :now THEN 0 ELSE 1 END,
+                CASE WHEN e.starts_at > :now THEN e.starts_at END ASC, e.starts_at DESC"""
     created = db.execute(
         f"""SELECT {EVENT_COLS} FROM events e JOIN users u ON u.id = e.author_id
-            WHERE e.author_id = ? ORDER BY e.starts_at DESC""",
-        (g.user["id"],),
+            WHERE e.author_id = :uid {order}""",
+        {"uid": g.user["id"], "now": now},
     ).fetchall()
     joined = db.execute(
         f"""SELECT {EVENT_COLS} FROM rsvps r JOIN events e ON e.id = r.event_id
-            JOIN users u ON u.id = e.author_id WHERE r.user_id = ? ORDER BY e.starts_at DESC""",
-        (g.user["id"],),
+            JOIN users u ON u.id = e.author_id WHERE r.user_id = :uid {order}""",
+        {"uid": g.user["id"], "now": now},
     ).fetchall()
 
     def with_access(rows, own):
