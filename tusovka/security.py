@@ -1,16 +1,14 @@
 import hashlib
 import hmac
 import secrets
-import threading
 import time
-from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from urllib.parse import urlparse
 
 from flask import abort, current_app, flash, g, redirect, request, session, url_for
 
-from .db import get_db
+from .db import get_db, transaction
 
 SESSION_DAYS = 14
 DT_FMT = "%Y-%m-%d %H:%M:%S"
@@ -139,57 +137,39 @@ def check_csrf():
 
 # ---------- rate limit ----------
 
-class RateLimiter:
-    MAX_KEYS = 50000
+# Лічильники зберігаються в SQLite, а не в пам'яті процесу: ліміт спільний для всіх
+# процесів/потоків сервера (gunicorn -w 4 тощо) і переживає перезапуск.
 
-    def __init__(self):
-        self._hits = defaultdict(deque)
-        self._windows = {}
-        self._lock = threading.Lock()
-
-    def hit(self, key, limit, window):
-        """True — дозволено; False — ліміт вичерпано."""
-        now = time.monotonic()
-        with self._lock:
-            q = self._hits[key]
-            self._windows[key] = window
-            while q and q[0] <= now - window:
-                q.popleft()
-            if len(q) >= limit:
-                return False
-            q.append(now)
-            if len(self._hits) > self.MAX_KEYS:
-                self._purge(now)
-            return True
-
-    def _purge(self, now):
-        # захист пам'яті: прибираємо ключі, в яких усі звернення вже вийшли за межі вікна
-        stale = [k for k, q in self._hits.items() if not q or q[-1] <= now - self._windows.get(k, 0)]
-        for k in stale:
-            del self._hits[k]
-            self._windows.pop(k, None)
-
-    def reset(self):
-        with self._lock:
-            self._hits.clear()
-            self._windows.clear()
-
-
-limiter = RateLimiter()
+def _limit_hit(key, limit, window):
+    """True — дозволено; False — ліміт вичерпано. Перевірка й запис атомарні (BEGIN IMMEDIATE)."""
+    db = get_db()
+    now = time.time()
+    key = key[:300]
+    with transaction(db):
+        count = db.execute(
+            "SELECT COUNT(*) FROM rate_hits WHERE key = ? AND ts > ?", (key, now - window)
+        ).fetchone()[0]
+        if count >= limit:
+            return False
+        db.execute("INSERT INTO rate_hits (key, ts, expires) VALUES (?, ?, ?)", (key, now, now + window))
+        # зрідка прибираємо прострочені записи, щоб таблиця не росла
+        if secrets.randbelow(100) == 0:
+            db.execute("DELETE FROM rate_hits WHERE expires < ?", (now,))
+    return True
 
 
 def rate_limit(bucket, limit, window, per_user=False):
     if not current_app.config.get("RATELIMIT_ENABLED", True):
         return
     who = f"u{g.user['id']}" if per_user and g.get("user") else request.remote_addr or "?"
-    if not limiter.hit(f"{bucket}:{who}", limit, window):
+    if not _limit_hit(f"{bucket}:{who}", limit, window):
         abort(429)
 
 
 def rate_limit_global(key, limit, window):
     if not current_app.config.get("RATELIMIT_ENABLED", True):
         return
-    if not limiter.hit(f"global:{key}", limit, window):
+    if not _limit_hit(f"global:{key}", limit, window):
         abort(429)
 
 

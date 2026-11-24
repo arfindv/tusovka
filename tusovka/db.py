@@ -52,6 +52,14 @@ CREATE TABLE IF NOT EXISTS comments (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_comments_event ON comments(event_id, id);
+
+CREATE TABLE IF NOT EXISTS rate_hits (
+    key TEXT NOT NULL,
+    ts REAL NOT NULL,
+    expires REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rate_hits_key ON rate_hits(key, ts);
+CREATE INDEX IF NOT EXISTS idx_rate_hits_expires ON rate_hits(expires);
 """
 
 

@@ -69,8 +69,18 @@ cp .env.example .env
 ## Деплой
 
 `wsgi.py` — WSGI-точка входу (`wsgi:application`) для будь-якого хостингу (PythonAnywhere, gunicorn тощо).
-На сервері встановіть `TUSOVKA_ENV=production`, довгий `SECRET_KEY`, `TRUSTED_PROXIES=1` (якщо перед застосунком є проксі) і увімкніть HTTPS.
-Потрібен постійний диск: база SQLite та обкладинки зберігаються в `instance/`.
+
+Чекліст перед запуском для справжніх користувачів:
+
+1. `TUSOVKA_ENV=production` — Secure-cookie, HSTS; без `SECRET_KEY` застосунок не запуститься.
+2. `SECRET_KEY` — власний, 64 hex-символи (`python -c "import secrets; print(secrets.token_hex(32))"`), тільки в змінних середовища хостингу, не в git.
+3. Лише HTTPS (на PythonAnywhere/Render/Fly вмикається в налаштуваннях). Без HTTPS у продакшені вхід не працюватиме — у лог піде попередження.
+4. `TRUSTED_PROXIES=1`, якщо перед застосунком стоїть проксі (PythonAnywhere, Render, Fly, nginx). Якщо забути — застосунок напише попередження в лог.
+5. Постійний диск для `instance/` (база SQLite й обкладинки) і регулярні бекапи:
+   `python backup.py` — копія бази та обкладинок у `instance/backups/` (зберігаються 14 останніх). Запускайте за розкладом (cron / Scheduled tasks).
+6. Якщо запускаєте через `wsgi.py` (gunicorn тощо), обмежте розмір запиту на рівні проксі (nginx `client_max_body_size 17m`). `run.py` робить це сам.
+
+Обмеження частоти зберігаються в базі, тож працюють однаково і з одним процесом, і з кількома (`gunicorn -w 4`).
 
 ## Безпека
 

@@ -110,6 +110,8 @@ def create_app(test_config=None):
     proxies = int(os.environ.get("TRUSTED_PROXIES", "0") or 0)
     if proxies > 0:
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxies, x_proto=proxies, x_host=proxies)
+    app.config["TRUSTED_PROXIES"] = proxies
+    app.config["PRODUCTION"] = production
 
     os.makedirs(os.path.dirname(os.path.abspath(app.config["DATABASE_PATH"])), exist_ok=True)
     os.makedirs(app.config["UPLOAD_DIR"], exist_ok=True)
@@ -125,8 +127,18 @@ def create_app(test_config=None):
     app.register_blueprint(events.bp)
     app.teardown_appcontext(close_db)
 
+    proxy_warned = []
+
     @app.before_request
     def _before():
+        if production and not proxy_warned and proxies == 0 and request.headers.get("X-Forwarded-For"):
+            # за проксі без TRUSTED_PROXIES усі користувачі мають один IP — ліміти спрацюють на всіх разом
+            proxy_warned.append(True)
+            app.logger.warning("Запит прийшов через проксі (X-Forwarded-For), але TRUSTED_PROXIES=0. "
+                               "Встановіть TRUSTED_PROXIES=1, інакше обмеження частоти діятимуть на всіх разом.")
+        if production and not proxy_warned and not request.is_secure:
+            proxy_warned.append(True)
+            app.logger.warning("Продакшн працює без HTTPS: Secure-cookie не надсилатимуться, вхід не працюватиме.")
         load_current_user()
         check_csrf()
 

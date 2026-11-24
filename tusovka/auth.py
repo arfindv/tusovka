@@ -85,6 +85,9 @@ def register():
                     (values["email"], values["name"], ph.hash(password), now_db()),
                 )
             except sqlite3.IntegrityError:
+                # відповідь «вже існує» дозволяє перевіряти, чи зареєстрована адреса,
+                # тож кількість таких перевірок з одного IP суворо обмежена
+                rate_limit("register-exists", 10, 3600)
                 errors["email"] = "Акаунт з таким email уже існує. Спробуйте увійти."
             else:
                 login_user(cur.lastrowid)
@@ -135,3 +138,14 @@ def logout():
     logout_user()
     flash("Ви вийшли з акаунта.", "success")
     return redirect(url_for("events.index"))
+
+
+@bp.route("/logout-all", methods=["POST"])
+def logout_all():
+    if g.user is None:
+        return redirect(url_for("auth.login"))
+    # завершує всі сесії користувача: на цьому та всіх інших пристроях
+    get_db().execute("DELETE FROM sessions WHERE user_id = ?", (g.user["id"],))
+    logout_user()
+    flash("Ви вийшли з акаунта на всіх пристроях.", "success")
+    return redirect(url_for("auth.login"))

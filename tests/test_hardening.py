@@ -164,15 +164,71 @@ def test_participant_leaving_private_event_from_profile_not_404(client, app, mak
     assert f"/e/{pid}?invite={inv}" in r.headers["Location"]
 
 
-def test_rate_limiter_purges_stale_keys(monkeypatch):
-    from tusovka.security import RateLimiter
-    rl = RateLimiter()
-    monkeypatch.setattr(RateLimiter, "MAX_KEYS", 100)
-    clock = [1000.0]
-    monkeypatch.setattr("tusovka.security.time.monotonic", lambda: clock[0])
-    for i in range(100):
-        assert rl.hit(f"k{i}", 5, 60)
-    clock[0] += 120
-    for i in range(100, 110):
-        rl.hit(f"k{i}", 5, 60)
-    assert len(rl._hits) <= 11
+def test_rate_limit_shared_across_app_instances(app, tmp_path):
+    # два екземпляри застосунку (як два процеси gunicorn) з однією базою ділять ліміт
+    from tusovka import create_app
+    app.config["RATELIMIT_ENABLED"] = True
+    other = create_app({"DATABASE_PATH": app.config["DATABASE_PATH"],
+                        "UPLOAD_DIR": app.config["UPLOAD_DIR"], "RATELIMIT_ENABLED": True})
+    codes = []
+    for i in range(70):
+        c = (app if i % 2 else other).test_client()
+        codes.append(post(c, "/login", {"email": f"x{i}@example.com", "password": "wrong-pass-1"}).status_code)
+    assert codes.count(429) >= 10
+
+
+def test_rate_hits_expire(app):
+    import time as _t
+    from tusovka.security import _limit_hit
+    with app.test_request_context():
+        assert all(_limit_hit("t", 3, 60) for _ in range(3))
+        assert not _limit_hit("t", 3, 60)
+    conn = db(app)
+    conn.execute("UPDATE rate_hits SET ts = ts - 120, expires = expires - 120")
+    conn.close()
+    with app.test_request_context():
+        assert _limit_hit("t", 3, 60)
+
+
+def test_logout_all_kills_other_sessions(client, make_client):
+    register(client)
+    other = make_client()
+    post(other, "/login", {"email": "alice@example.com", "password": "correct-horse-1"})
+    assert other.get("/me").status_code == 200
+    r = post(client, "/logout-all")
+    assert r.status_code == 302
+    assert client.get("/me").status_code == 302
+    assert other.get("/me").status_code == 302  # інший пристрій теж вийшов
+
+
+def test_email_existence_probing_limited(app, make_client):
+    register(make_client())
+    app.config["RATELIMIT_ENABLED"] = True
+    codes = [register(make_client(), name="Probe").status_code for _ in range(15)]
+    assert codes[:10] == [422] * 10 and 429 in codes[10:]
+
+
+def test_backup_script(app, monkeypatch):
+    import sqlite3
+    import backup
+    monkeypatch.setattr(backup, "create_app", lambda: app)
+    assert backup.main() == 0
+    out = os.path.join(os.path.dirname(app.config["DATABASE_PATH"]), "backups")
+    dbs = [f for f in os.listdir(out) if f.endswith(".db")]
+    assert len(dbs) == 1 and any(f.endswith(".zip") for f in os.listdir(out))
+    conn = sqlite3.connect(os.path.join(out, dbs[0]))
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0
+    conn.close()
+
+
+def test_production_warns_about_missing_proxy_config(app, caplog):
+    app.config["PRODUCTION"] = True
+    from tusovka import create_app
+    import os as _os
+    _os.environ["TUSOVKA_ENV"] = "production"
+    try:
+        prod = create_app({"DATABASE_PATH": app.config["DATABASE_PATH"], "UPLOAD_DIR": app.config["UPLOAD_DIR"]})
+    finally:
+        _os.environ["TUSOVKA_ENV"] = "development"
+    prod.test_client().get("/healthz", headers={"X-Forwarded-For": "1.2.3.4"})
+    assert "TRUSTED_PROXIES" in caplog.text

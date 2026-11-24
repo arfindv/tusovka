@@ -8,7 +8,7 @@ from PIL import Image
 
 from tusovka import create_app
 from tusovka.db import connect
-from tusovka.security import limiter, to_db, utcnow
+from tusovka.security import to_db, utcnow
 from tusovka.validation import to_local_input
 
 
@@ -16,7 +16,6 @@ from tusovka.validation import to_local_input
 def app(tmp_path, monkeypatch):
     monkeypatch.setenv("SECRET_KEY", secrets.token_hex(32))
     monkeypatch.setenv("TUSOVKA_ENV", "development")
-    limiter.reset()
     app = create_app({
         "DATABASE_PATH": str(tmp_path / "test.db"),
         "UPLOAD_DIR": str(tmp_path / "uploads"),

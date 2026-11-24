@@ -8,6 +8,10 @@
   <div>
     <h1>{{ g.user['name'] }}</h1>
     <p class="muted">{{ g.user['email'] }}</p>
+    <form method="post" action="{{ url_for('auth.logout_all') }}" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="linklike small" type="submit">Вийти на всіх пристроях</button>
+    </form>
   </div>
 </section>
 
