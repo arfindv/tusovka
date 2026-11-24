@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "_macros.html" import event_card %}
+{% block title %}Майбутні події{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Знайди свою <span class="hl">тусовку</span></h1>
+  <p class="lead">Зустрічі, лекції, ігри та прогулянки поруч із тобою. Записуйся або створюй власну подію.</p>
+  <form class="search" method="get" action="{{ url_for('events.index') }}" role="search">
+    <label class="sr-only" for="q">Пошук за назвою</label>
+    <input id="q" type="search" name="q" value="{{ q }}" maxlength="100" placeholder="Пошук за назвою події…">
+    <button class="btn btn-dark" type="submit">Шукати</button>
+  </form>
+</section>
+
+<div class="section-head">
+  <h2>{% if q %}Результати для «{{ q }}»{% else %}Майбутні події{% endif %}</h2>
+  {% if q %}<a class="muted" href="{{ url_for('events.index') }}">Скинути пошук</a>{% endif %}
+</div>
+
+{% if events %}
+  <div class="grid">
+    {% for ev in events %}{{ event_card(ev) }}{% endfor %}
+  </div>
+  {% if pages > 1 %}
+    <nav class="pager" aria-label="Сторінки">
+      {% if page > 1 %}<a class="btn btn-ghost" href="{{ url_for('events.index', q=q or None, page=page-1) }}">← Назад</a>{% endif %}
+      <span class="muted">Сторінка {{ page }} з {{ pages }}</span>
+      {% if page < pages %}<a class="btn btn-ghost" href="{{ url_for('events.index', q=q or None, page=page+1) }}">Далі →</a>{% endif %}
+    </nav>
+  {% endif %}
+{% else %}
+  <div class="empty">
+    <div class="empty-icon" aria-hidden="true">☀</div>
+    {% if q %}
+      <h3>Нічого не знайдено</h3>
+      <p class="muted">Спробуйте іншу назву або подивіться всі події.</p>
+    {% else %}
+      <h3>Поки що немає майбутніх подій</h3>
+      <p class="muted">Станьте першим — створіть подію і покличте друзів.</p>
+    {% endif %}
+    <a class="btn btn-primary" href="{{ url_for('events.create') }}">Створити подію</a>
+  </div>
+{% endif %}
+{% endblock %}

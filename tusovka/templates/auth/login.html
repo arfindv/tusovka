@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Вхід{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <h1>Вхід</h1>
+  <form class="form" method="post" action="{{ url_for('auth.login') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <label class="label" for="email">Email</label>
+    <input id="email" name="email" type="email" autocomplete="email" required maxlength="254" value="{{ email }}" autofocus>
+    <label class="label" for="password">Пароль</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="128">
+    <button class="btn btn-primary btn-block" type="submit">Увійти</button>
+  </form>
+  <p class="muted center">Немає акаунта? <a href="{{ url_for('auth.register') }}">Зареєструватися</a></p>
+</div>
+{% endblock %}

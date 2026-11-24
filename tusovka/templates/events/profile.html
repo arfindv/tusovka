@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_macros.html" import event_card %}
+{% block title %}Мій профіль{% endblock %}
+{% block content %}
+<section class="profile-head">
+  <span class="avatar big" aria-hidden="true">{{ g.user['name'][:1] | upper }}</span>
+  <div>
+    <h1>{{ g.user['name'] }}</h1>
+    <p class="muted">{{ g.user['email'] }}</p>
+  </div>
+</section>
+
+<div class="section-head"><h2>Я йду ({{ joined | length }})</h2></div>
+{% if joined %}
+  <div class="grid">{% for ev in joined %}{{ event_card(ev) }}{% endfor %}</div>
+{% else %}
+  <div class="empty small-empty">
+    <p class="muted">Ви ще нікуди не записалися.</p>
+    <a class="btn btn-ghost" href="{{ url_for('events.index') }}">Переглянути події</a>
+  </div>
+{% endif %}
+
+<div class="section-head"><h2>Мої події ({{ created | length }})</h2></div>
+{% if created %}
+  <div class="grid">{% for ev in created %}{{ event_card(ev) }}{% endfor %}</div>
+{% else %}
+  <div class="empty small-empty">
+    <p class="muted">Ви ще не створили жодної події.</p>
+    <a class="btn btn-primary" href="{{ url_for('events.create') }}">Створити подію</a>
+  </div>
+{% endif %}
+{% endblock %}

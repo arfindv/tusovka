@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field_error, invalid %}
+{% block title %}Реєстрація{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <h1>Реєстрація</h1>
+  <form class="form" method="post" action="{{ url_for('auth.register') }}" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="label" for="name">Ім'я <span class="muted small">(бачать інші учасники)</span></label>
+    <input id="name" name="name" type="text" autocomplete="name" required maxlength="50" value="{{ values.get('name', '') }}" {{ invalid(errors, 'name') }}>
+    {{ field_error(errors, 'name') }}
+    <label class="label" for="email">Email <span class="muted small">(не показуємо іншим)</span></label>
+    <input id="email" name="email" type="email" autocomplete="email" required maxlength="254" value="{{ values.get('email', '') }}" {{ invalid(errors, 'email') }}>
+    {{ field_error(errors, 'email') }}
+    <label class="label" for="password">Пароль</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="128" {{ invalid(errors, 'password') }}>
+    <p class="hint">Щонайменше 8 символів.</p>
+    {{ field_error(errors, 'password') }}
+    <label class="label" for="password2">Повторіть пароль</label>
+    <input id="password2" name="password2" type="password" autocomplete="new-password" required maxlength="128" {{ invalid(errors, 'password2') }}>
+    {{ field_error(errors, 'password2') }}
+    <button class="btn btn-primary btn-block" type="submit">Створити акаунт</button>
+  </form>
+  <p class="muted center">Вже маєте акаунт? <a href="{{ url_for('auth.login') }}">Увійти</a></p>
+</div>
+{% endblock %}

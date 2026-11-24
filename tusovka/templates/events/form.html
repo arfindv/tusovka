@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field_error, invalid %}
+{% block title %}{{ "Редагування" if ev else "Нова подія" }}{% endblock %}
+{% block content %}
+<div class="form-page">
+  <h1>{{ "Редагувати подію" if ev else "Нова подія" }}</h1>
+  {% if errors %}<div class="flash flash-error" role="alert">Перевірте поля, позначені нижче.</div>{% endif %}
+  <form class="form" method="post" enctype="multipart/form-data" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <label class="label" for="title">Назва</label>
+    <input id="title" name="title" type="text" maxlength="120" required value="{{ values.title }}" {{ invalid(errors, 'title') }}>
+    {{ field_error(errors, 'title') }}
+
+    <label class="label" for="description">Опис</label>
+    <textarea id="description" name="description" rows="6" maxlength="5000" required {{ invalid(errors, 'description') }}>{{ values.description }}</textarea>
+    {{ field_error(errors, 'description') }}
+
+    <div class="two">
+      <div>
+        <label class="label" for="starts_at">Дата й час <span class="muted small">({{ tz_name }})</span></label>
+        <input id="starts_at" name="starts_at" type="datetime-local" required value="{{ values.starts_at }}" {{ invalid(errors, 'starts_at') }}>
+        {{ field_error(errors, 'starts_at') }}
+      </div>
+      <div>
+        <label class="label" for="capacity">Кількість місць</label>
+        <input id="capacity" name="capacity" type="number" min="{{ ev.taken if ev and ev.taken > 0 else 1 }}" max="10000" step="1" required value="{{ values.capacity }}" {{ invalid(errors, 'capacity') }}>
+        {% if ev and ev.taken %}<p class="hint">Уже записалося: {{ ev.taken }}</p>{% endif %}
+        {{ field_error(errors, 'capacity') }}
+      </div>
+    </div>
+
+    <label class="label" for="cover">Обкладинка <span class="muted small">(JPEG, PNG або WebP, до 5 МБ)</span></label>
+    {% if ev and ev.cover %}
+      <div class="current-cover">
+        <img src="{{ url_for('events.upload', name=ev.cover) }}" alt="Поточна обкладинка">
+        <label class="check"><input type="checkbox" name="remove_cover" value="1"> Прибрати обкладинку</label>
+      </div>
+    {% endif %}
+    <input id="cover" name="cover" type="file" accept="image/jpeg,image/png,image/webp" {{ invalid(errors, 'cover') }}>
+    {{ field_error(errors, 'cover') }}
+
+    <fieldset class="visibility">
+      <legend class="label">Тип події</legend>
+      <label class="radio-card">
+        <input type="radio" name="visibility" value="public" {% if values.visibility != 'private' %}checked{% endif %}>
+        <span><b>Публічна</b><br><span class="muted small">Видно на головній і в пошуку</span></span>
+      </label>
+      <label class="radio-card">
+        <input type="radio" name="visibility" value="private" {% if values.visibility == 'private' %}checked{% endif %}>
+        <span><b>Приватна</b><br><span class="muted small">Лише за посиланням-запрошенням</span></span>
+      </label>
+    </fieldset>
+    {{ field_error(errors, 'visibility') }}
+
+    <div class="form-actions">
+      <a class="btn btn-ghost" href="{{ event_link(ev) if ev else url_for('events.index') }}">Скасувати</a>
+      <button class="btn btn-primary" type="submit">{{ "Зберегти зміни" if ev else "Створити подію" }}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

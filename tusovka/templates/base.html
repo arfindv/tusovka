@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Тусовка{% endblock %} · Тусовка</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+</head>
+<body>
+  <a class="skip" href="#main">Перейти до змісту</a>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="logo" href="{{ url_for('events.index') }}"><span class="logo-mark">Т</span>Тусовка</a>
+      <nav class="nav" aria-label="Головне меню">
+        {% if g.user %}
+          <a class="btn btn-primary btn-sm" href="{{ url_for('events.create') }}">+ Створити подію</a>
+          <a class="nav-link" href="{{ url_for('events.profile') }}">{{ g.user['name'] }}</a>
+          <form method="post" action="{{ url_for('auth.logout') }}" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="nav-link linklike" type="submit">Вийти</button>
+          </form>
+        {% else %}
+          <a class="nav-link" href="{{ url_for('auth.login') }}">Увійти</a>
+          <a class="btn btn-primary btn-sm" href="{{ url_for('auth.register') }}">Реєстрація</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes" role="status" aria-live="polite">
+          {% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">Тусовка — збирайтеся разом. Час подій: {{ tz_name }}.</div>
+  </footer>
+</body>
+</html>
