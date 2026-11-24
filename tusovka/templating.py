@@ -3,7 +3,8 @@ from .validation import app_tz, to_local_input
 
 MONTHS = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня",
           "серпня", "вересня", "жовтня", "листопада", "грудня"]
-WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "нд"]
+TZ_LABELS = {"Europe/Kyiv": "київський час", "Europe/Kiev": "київський час", "UTC": "UTC"}
+WEEKDAYS =["пн", "вт", "ср", "чт", "пт", "сб", "нд"]
 
 
 def register_filters(app):
@@ -38,6 +39,6 @@ def register_filters(app):
     @app.context_processor
     def _ctx():
         return {
-            "tz_name": app.config["APP_TIMEZONE"],
+            "tz_name": TZ_LABELS.get(app.config["APP_TIMEZONE"], app.config["APP_TIMEZONE"]),
             "now_local_input": lambda: to_local_input(utcnow()),
         }

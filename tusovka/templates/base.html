@@ -23,7 +23,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="nav-link linklike" type="submit">Вийти</button>
           </form>
-          <a class="btn btn-primary btn-sm" href="{{ url_for('events.create') }}">{{ icon('plus') }} Створити подію</a>
+          <a class="btn btn-primary btn-sm nav-create" href="{{ url_for('events.create') }}" aria-label="Створити подію">{{ icon('plus') }}<span class="hide-sm"> Створити подію</span></a>
         {% else %}
           <a class="nav-link" href="{{ url_for('auth.login') }}">Увійти</a>
           <a class="btn btn-dark btn-sm" href="{{ url_for('auth.register') }}">Реєстрація</a>

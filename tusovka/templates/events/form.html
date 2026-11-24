@@ -38,7 +38,7 @@
       </div>
     {% endif %}
     {% if errors and not errors.get('cover') %}<p class="hint">Якщо ви обирали файл — оберіть його ще раз.</p>{% endif %}
-    <input id="cover" name="cover" type="file" accept="image/jpeg,image/png,image/webp" {{ invalid(errors, 'cover') }}>
+    <input id="cover" name="cover" type="file" data-max-bytes="5242880" accept="image/jpeg,image/png,image/webp" {{ invalid(errors, 'cover') }}>
     {{ field_error(errors, 'cover') }}
 
     <fieldset class="visibility">

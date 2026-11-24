@@ -313,8 +313,15 @@ def test_svg_and_html_covers_rejected(client, app):
 
 def test_oversized_upload_rejected(client, app):
     register(client)
+    # 7 МБ — помилка біля поля, форма зберігається
     r = _upload(client, app, "big.png", b"\x89PNG\r\n\x1a\n" + b"0" * (7 * 1024 * 1024))
+    assert r.status_code == 422
+    body = r.get_data(as_text=True)
+    assert "максимум 5 МБ" in body and "Настолки" in body
+    # 20 МБ — запит відхиляється одразу, без читання в пам'ять
+    r = _upload(client, app, "huge.png", b"\x89PNG\r\n\x1a\n" + b"0" * (20 * 1024 * 1024))
     assert r.status_code == 413
+    assert db(app).execute("SELECT COUNT(*) FROM events").fetchone()[0] == 0
 
 
 def test_upload_path_traversal(client):

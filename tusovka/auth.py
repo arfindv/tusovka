@@ -72,9 +72,10 @@ def register():
     if g.user:
         return redirect(url_for("events.index"))
     values, errors = {}, {}
+    next_url = safe_next(request.values.get("next"))
     if request.method == "POST":
         # з одного IP (аудиторія/NAT) можуть реєструватися багато людей — ліміт лише проти ботів
-        rate_limit("register", 40, 3600)
+        rate_limit("register", 60, 3600)
         values, password, errors = _validate_register(request.form)
         if not errors:
             db = get_db()
@@ -88,9 +89,9 @@ def register():
             else:
                 login_user(cur.lastrowid)
                 flash("Вітаємо у «Тусовці»!", "success")
-                return redirect(url_for("events.index"))
-        return render_template("auth/register.html", values=values, errors=errors), 422
-    return render_template("auth/register.html", values=values, errors=errors)
+                return redirect(next_url or url_for("events.index"))
+        return render_template("auth/register.html", values=values, errors=errors, next=next_url), 422
+    return render_template("auth/register.html", values=values, errors=errors, next=next_url)
 
 
 @bp.route("/login", methods=["GET", "POST"])

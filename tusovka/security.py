@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from functools import wraps
 from urllib.parse import urlparse
 
-from flask import abort, current_app, g, redirect, request, session, url_for
+from flask import abort, current_app, flash, g, redirect, request, session, url_for
 
 from .db import get_db
 
@@ -83,7 +83,18 @@ def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         if g.user is None:
-            return redirect(url_for("auth.login", next=request.full_path.rstrip("?")))
+            if request.method == "GET":
+                target = request.full_path.rstrip("?")
+            elif request.view_args and "public_id" in request.view_args:
+                # після входу повертаємо на сторінку події (POST-адресу відкрити GET-ом не можна)
+                invite = request.form.get("invite", "")
+                target = url_for("events.detail", public_id=request.view_args["public_id"],
+                                 **({"invite": invite} if invite and len(invite) <= 64 else {}))
+            else:
+                target = None
+            if request.method != "GET":
+                flash("Сесія завершилася — увійдіть, щоб продовжити.", "info")
+            return redirect(url_for("auth.login", next=target))
         return view(*args, **kwargs)
 
     return wrapped
@@ -175,7 +186,7 @@ def rate_limit_global(key, limit, window):
 
 def set_security_headers(resp):
     resp.headers["Content-Security-Policy"] = (
-        "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; "
+        "default-src 'self'; img-src 'self' blob:; style-src 'self'; script-src 'self'; "
         "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
     )
     resp.headers["X-Content-Type-Options"] = "nosniff"

@@ -44,6 +44,7 @@
           <p class="notice">{{ icon('clock') }} Подія вже почалася — запис закрито.</p>
         {% elif not g.user %}
           <a class="btn btn-primary btn-block btn-lg" href="{{ url_for('auth.login', next=event_link(ev)) }}">Увійдіть, щоб записатися</a>
+          <p class="muted small center">Немає акаунта? <a href="{{ url_for('auth.register', next=event_link(ev)) }}">Зареєструйтеся</a></p>
         {% elif is_author and not going %}
           <p class="notice">{{ icon('spark') }} Ви організатор цієї події</p>
         {% elif going %}
@@ -137,7 +138,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{{ invite_field }}
         <label class="sr-only" for="body">Ваш коментар</label>
         <textarea id="body" name="body" rows="3" maxlength="{{ comment_max }}" required placeholder="Напишіть коментар…"></textarea>
-        <div class="form-row-end"><span class="muted small">до {{ comment_max }} символів</span><button class="btn btn-primary btn-sm" type="submit">Надіслати</button></div>
+        <div class="form-row-end"><span class="muted small">Не більше {{ comment_max }} символів</span><button class="btn btn-primary btn-sm" type="submit">Надіслати</button></div>
       </form>
     {% else %}
       <p><a href="{{ url_for('auth.login', next=event_link(ev)) }}">Увійдіть</a>, щоб коментувати.</p>

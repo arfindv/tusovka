@@ -160,7 +160,7 @@ def create():
     if request.method == "GET":
         return render_template("events/form.html", values=_event_form_defaults(), errors={}, ev=None)
 
-    rate_limit("create-event", 20, 3600, per_user=True)
+    rate_limit("create-event", 60, 3600, per_user=True)
     values, data, errors = validate_event_form(request.form)
     cover = None
     if not errors:

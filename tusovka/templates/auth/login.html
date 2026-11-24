@@ -14,6 +14,6 @@
     <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="128">
     <button class="btn btn-primary btn-block" type="submit">Увійти</button>
   </form>
-  <p class="muted center">Немає акаунта? <a href="{{ url_for('auth.register') }}">Зареєструватися</a></p>
+  <p class="muted center">Немає акаунта? <a href="{{ url_for('auth.register', next=next) }}">Зареєструватися</a></p>
 </div>
 {% endblock %}

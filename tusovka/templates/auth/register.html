@@ -8,6 +8,7 @@
   <p class="muted">Це займе менше хвилини.</p>
   <form class="form" method="post" action="{{ url_for('auth.register') }}" novalidate>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
     <label class="label" for="name">Ім'я <span class="muted small">(бачать інші учасники)</span></label>
     <input id="name" name="name" type="text" autocomplete="name" required maxlength="50" value="{{ values.get('name', '') }}" {{ invalid(errors, 'name') }}>
     {{ field_error(errors, 'name') }}
@@ -23,6 +24,6 @@
     {{ field_error(errors, 'password2') }}
     <button class="btn btn-primary btn-block" type="submit">Створити акаунт</button>
   </form>
-  <p class="muted center">Вже маєте акаунт? <a href="{{ url_for('auth.login') }}">Увійти</a></p>
+  <p class="muted center">Вже маєте акаунт? <a href="{{ url_for('auth.login', next=next) }}">Увійти</a></p>
 </div>
 {% endblock %}
