@@ -74,6 +74,19 @@ def _invite_from_request():
     return token if isinstance(token, str) and len(token) <= 64 else ""
 
 
+def _private_access(ev, token):
+    """Чи може поточний користувач бачити приватну подію: автор, дійсний токен-запрошення або учасник.
+    None — доступу немає; інакше токен для посилань ('' — доступ без токена, як учасник)."""
+    user = g.user
+    if user is not None and user["id"] == ev["author_id"]:
+        return ev["invite_token"] or ""
+    if token and ev["invite_token"] and hmac.compare_digest(token, ev["invite_token"]):
+        return token
+    if user is not None and _is_participant(ev["id"], user["id"]):
+        return ""
+    return None
+
+
 def load_visible_event(public_id):
     """Подія, яку поточний користувач має право бачити. Для приватної — лише автор,
     учасник або хто прийшов з дійсним токеном-запрошенням. Інакше 404 (не розкриваємо, що подія існує)."""
@@ -81,18 +94,11 @@ def load_visible_event(public_id):
     ev["invite"] = ""
     if not ev["is_private"]:
         return ev
-    user = g.user
-    token = _invite_from_request()
-    token_ok = bool(token and ev["invite_token"] and hmac.compare_digest(token, ev["invite_token"]))
-    if user is not None and user["id"] == ev["author_id"]:
-        ev["invite"] = ev["invite_token"] or ""
-        return ev
-    if token_ok:
-        ev["invite"] = token
-        return ev
-    if user is not None and _is_participant(ev["id"], user["id"]):
-        return ev
-    abort(404)
+    access = _private_access(ev, _invite_from_request())
+    if access is None:
+        abort(404)
+    ev["invite"] = access
+    return ev
 
 
 def load_own_event(public_id):
@@ -108,6 +114,12 @@ def event_link(ev, **extra):
     if ev.get("is_private") and ev.get("invite"):
         extra["invite"] = ev["invite"]
     return url_for("events.detail", public_id=ev["public_id"], **extra)
+
+
+def cover_url(ev):
+    # обкладинку приватної події віддаємо лише тим, хто має доступ до самої події
+    extra = {"invite": ev["invite"]} if ev.get("is_private") and ev.get("invite") else {}
+    return url_for("events.upload", name=ev["cover"], **extra)
 
 
 # ---------- головна ----------
@@ -209,6 +221,7 @@ def edit(public_id):
         }
         return render_template("events/form.html", values=values, errors={}, ev=ev)
 
+    rate_limit("edit-event", 60, 3600, per_user=True)
     values, data, errors = validate_event_form(request.form, current_participants=ev["taken"])
     new_cover = None
     if not errors:
@@ -262,6 +275,7 @@ class _CapacityConflict(Exception):
 @login_required
 def delete(public_id):
     ev = load_own_event(public_id)
+    rate_limit("delete-event", 60, 3600, per_user=True)
     get_db().execute("DELETE FROM events WHERE id = ? AND author_id = ?", (ev["id"], g.user["id"]))
     delete_cover(ev["cover"])
     flash("Подію видалено.", "success")
@@ -274,6 +288,7 @@ def regenerate_invite(public_id):
     ev = load_own_event(public_id)
     if not ev["is_private"]:
         abort(400)
+    rate_limit("invite", 30, 3600, per_user=True)
     token = new_invite_token()
     get_db().execute(
         "UPDATE events SET invite_token = ? WHERE id = ? AND author_id = ?", (token, ev["id"], g.user["id"])
@@ -372,6 +387,11 @@ def leave(public_id):
             msg = (("Запис скасовано.", "success") if cur.rowcount
                    else ("Ви не були записані на цю подію.", "info"))
     flash(*msg)
+    if ev["is_private"] and _private_access(ev, _invite_from_request()) is None:
+        # учасник без запрошення (відкрив подію з профілю) після скасування вже не має доступу —
+        # ведемо в профіль, а не на 404
+        flash("Це приватна подія: щоб повернутися до неї, знадобиться посилання-запрошення.", "info")
+        return redirect(url_for("events.profile"))
     return redirect(event_link(ev))
 
 
@@ -402,6 +422,7 @@ def delete_comment(public_id, comment_id):
     if comment_id > 2**62:  # SQLite INTEGER — 64 біти; більші числа не можуть існувати
         abort(404)
     ev = load_visible_event(public_id)
+    rate_limit("comment-delete", 30, 60, per_user=True)
     db = get_db()
     row = db.execute(
         "SELECT user_id FROM comments WHERE id = ? AND event_id = ?", (comment_id, ev["id"])
@@ -456,6 +477,14 @@ def profile():
 def upload(name):
     if not COVER_NAME_RE.match(name):
         abort(404)
+    row = get_db().execute(
+        "SELECT id, author_id, is_private, invite_token FROM events WHERE cover = ?", (name,)
+    ).fetchone()
+    # файл без події (осиротілий) або приватна подія без доступу — 404
+    if row is None or (row["is_private"] and _private_access(dict(row), _invite_from_request()) is None):
+        abort(404)
     resp = send_from_directory(current_app.config["UPLOAD_DIR"], name, max_age=86400)
     resp.headers["Content-Disposition"] = "inline"
+    if row["is_private"]:
+        resp.headers["Cache-Control"] = "private, no-store"
     return resp

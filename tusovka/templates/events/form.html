@@ -33,7 +33,7 @@
     <label class="label" for="cover">Обкладинка <span class="muted small">(JPEG, PNG або WebP, до 5 МБ)</span></label>
     {% if ev and ev.cover %}
       <div class="current-cover">
-        <img src="{{ url_for('events.upload', name=ev.cover) }}" alt="Поточна обкладинка">
+        <img src="{{ cover_url(ev) }}" alt="Поточна обкладинка">
         <label class="check"><input type="checkbox" name="remove_cover" value="1"> Прибрати обкладинку</label>
       </div>
     {% endif %}

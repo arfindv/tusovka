@@ -1,7 +1,10 @@
 """Регресійні тести на знахідки аудиту безпеки."""
+import io
+import os
+import re
 import time
 
-from conftest import create_event, db, post, register
+from conftest import create_event, db, image_bytes, post, register
 
 
 def test_huge_email_does_not_hang_server(client):
@@ -104,3 +107,72 @@ def test_dev_secret_persists_across_restarts(tmp_path, monkeypatch):
     a = _dev_secret(str(tmp_path))
     b = _dev_secret(str(tmp_path))
     assert a == b and len(a) == 64
+
+
+# ---------- після другого аудиту ----------
+
+def _private_with_cover(client, app):
+    from conftest import event_form, to_local_input, future
+    data = event_form(visibility="private")
+    with app.app_context():
+        data["starts_at"] = to_local_input(future())
+    data["cover"] = (io.BytesIO(image_bytes("PNG")), "c.png")
+    r = post(client, "/events/new", data, content_type="multipart/form-data")
+    assert r.status_code == 302
+    pid, inv = re.search(r"/e/([\w-]+)\?invite=([\w-]+)", r.headers["Location"]).groups()
+    cover = db(app).execute("SELECT cover FROM events WHERE public_id = ?", (pid,)).fetchone()[0]
+    return pid, inv, cover
+
+
+def test_private_cover_needs_access(client, app, make_client):
+    register(client)
+    pid, inv, cover = _private_with_cover(client, app)
+    assert client.get(f"/uploads/{cover}").status_code == 200  # автор
+    outsider = make_client()
+    assert outsider.get(f"/uploads/{cover}").status_code == 404
+    assert outsider.get(f"/uploads/{cover}?invite=wrong").status_code == 404
+    assert outsider.get(f"/uploads/{cover}?invite={inv}").status_code == 200
+    # сторінка події за запрошенням посилається на обкладинку з токеном
+    page = outsider.get(f"/e/{pid}?invite={inv}").get_data(as_text=True)
+    assert f"/uploads/{cover}?invite={inv}" in page
+    # після перевипуску запрошення старий токен до обкладинки не пускає
+    post(client, f"/e/{pid}/invite")
+    assert outsider.get(f"/uploads/{cover}?invite={inv}").status_code == 404
+
+
+def test_orphan_upload_not_served(client, app):
+    name = "0" * 32 + ".png"
+    with open(os.path.join(app.config["UPLOAD_DIR"], name), "wb") as fh:
+        fh.write(image_bytes("PNG"))
+    assert client.get(f"/uploads/{name}").status_code == 404
+
+
+def test_participant_leaving_private_event_from_profile_not_404(client, app, make_client):
+    register(client)
+    pid, inv = create_event(client, app, visibility="private")
+    guest = make_client()
+    register(guest, email="guest@example.com", name="Guest")
+    post(guest, f"/e/{pid}/join", {"invite": inv})
+    # гість відкриває подію з профілю (без токена) і скасовує запис
+    assert guest.get(f"/e/{pid}").status_code == 200
+    r = post(guest, f"/e/{pid}/leave")
+    assert r.status_code == 302 and r.headers["Location"].endswith("/me")
+    assert guest.get("/me").status_code == 200
+    # а з токеном — повертаємося на подію
+    post(guest, f"/e/{pid}/join", {"invite": inv})
+    r = post(guest, f"/e/{pid}/leave", {"invite": inv})
+    assert f"/e/{pid}?invite={inv}" in r.headers["Location"]
+
+
+def test_rate_limiter_purges_stale_keys(monkeypatch):
+    from tusovka.security import RateLimiter
+    rl = RateLimiter()
+    monkeypatch.setattr(RateLimiter, "MAX_KEYS", 100)
+    clock = [1000.0]
+    monkeypatch.setattr("tusovka.security.time.monotonic", lambda: clock[0])
+    for i in range(100):
+        assert rl.hit(f"k{i}", 5, 60)
+    clock[0] += 120
+    for i in range(100, 110):
+        rl.hit(f"k{i}", 5, 60)
+    assert len(rl._hits) <= 11

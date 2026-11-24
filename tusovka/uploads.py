@@ -1,6 +1,7 @@
 import io
 import os
 import re
+import threading
 import uuid
 import warnings
 
@@ -12,6 +13,8 @@ MAX_PIXELS = 25_000_000  # ~100 МБ у пам'яті на декодуванн�
 MAX_SIDE = 1600
 ALLOWED = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}
 COVER_NAME_RE = re.compile(r"^[0-9a-f]{32}\.(jpg|png|webp)$")
+# одночасно декодуємо не більше 2 картинок: до ~100 МБ пам'яті кожна, тож сервер не вичерпає RAM
+_DECODE_SLOTS = threading.BoundedSemaphore(2)
 
 # Сигнатури (magic bytes) — перевіряємо до того, як віддати файл Pillow
 _MAGIC = (
@@ -46,6 +49,15 @@ def save_cover(file_storage):
     if fmt is None:
         raise CoverError("Підтримуються лише JPEG, PNG або WebP.")
 
+    if not _DECODE_SLOTS.acquire(timeout=30):
+        raise CoverError("Сервер зараз зайнятий обробкою зображень. Спробуйте ще раз за хвилину.")
+    try:
+        return _reencode_and_store(data, fmt)
+    finally:
+        _DECODE_SLOTS.release()
+
+
+def _reencode_and_store(data, fmt):
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)

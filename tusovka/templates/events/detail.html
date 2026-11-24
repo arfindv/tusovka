@@ -7,7 +7,7 @@
 <article class="event">
   <div class="event-cover">
     {% if ev.cover %}
-      <img src="{{ url_for('events.upload', name=ev.cover) }}" alt="Обкладинка події «{{ ev.title }}»">
+      <img src="{{ cover_url(ev) }}" alt="Обкладинка події «{{ ev.title }}»">
     {% else %}
       {{ placeholder(ev, big=True) }}
     {% endif %}

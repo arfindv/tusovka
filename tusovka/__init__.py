@@ -119,6 +119,7 @@ def create_app(test_config=None):
     register_filters(app)
     app.jinja_env.globals["csrf_token"] = csrf_token
     app.jinja_env.globals["event_link"] = events.event_link
+    app.jinja_env.globals["cover_url"] = events.cover_url
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(events.bp)

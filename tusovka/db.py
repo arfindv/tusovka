@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS idx_events_public_upcoming ON events(is_private, starts_at);
 CREATE INDEX IF NOT EXISTS idx_events_author ON events(author_id);
+CREATE INDEX IF NOT EXISTS idx_events_cover ON events(cover);
 
 CREATE TABLE IF NOT EXISTS rsvps (
     event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,

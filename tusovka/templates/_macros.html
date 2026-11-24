@@ -15,7 +15,7 @@
   <a class="card" href="{{ event_link(ev) }}">
     <div class="card-cover">
       {% if ev.cover %}
-        <img src="{{ url_for('events.upload', name=ev.cover) }}" alt="" loading="lazy">
+        <img src="{{ cover_url(ev) }}" alt="" loading="lazy">
       {% else %}
         {{ placeholder(ev) }}
       {% endif %}

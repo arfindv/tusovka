@@ -140,8 +140,11 @@ def check_csrf():
 # ---------- rate limit ----------
 
 class RateLimiter:
+    MAX_KEYS = 50000
+
     def __init__(self):
         self._hits = defaultdict(deque)
+        self._windows = {}
         self._lock = threading.Lock()
 
     def hit(self, key, limit, window):
@@ -149,19 +152,27 @@ class RateLimiter:
         now = time.monotonic()
         with self._lock:
             q = self._hits[key]
+            self._windows[key] = window
             while q and q[0] <= now - window:
                 q.popleft()
             if len(q) >= limit:
                 return False
             q.append(now)
-            if len(self._hits) > 50000:  # захист пам'яті
-                for k in [k for k, v in self._hits.items() if not v][:10000]:
-                    del self._hits[k]
+            if len(self._hits) > self.MAX_KEYS:
+                self._purge(now)
             return True
+
+    def _purge(self, now):
+        # захист пам'яті: прибираємо ключі, в яких усі звернення вже вийшли за межі вікна
+        stale = [k for k, q in self._hits.items() if not q or q[-1] <= now - self._windows.get(k, 0)]
+        for k in stale:
+            del self._hits[k]
+            self._windows.pop(k, None)
 
     def reset(self):
         with self._lock:
             self._hits.clear()
+            self._windows.clear()
 
 
 limiter = RateLimiter()
