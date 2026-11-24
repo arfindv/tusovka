@@ -19,7 +19,7 @@
     <div class="two">
       <div>
         <label class="label" for="starts_at">Дата й час <span class="muted small">({{ tz_name }})</span></label>
-        <input id="starts_at" name="starts_at" type="datetime-local" required value="{{ values.starts_at }}" {{ invalid(errors, 'starts_at') }}>
+        <input id="starts_at" name="starts_at" type="datetime-local" required min="{{ now_local_input() }}" value="{{ values.starts_at }}" {{ invalid(errors, 'starts_at') }}>
         {{ field_error(errors, 'starts_at') }}
       </div>
       <div>

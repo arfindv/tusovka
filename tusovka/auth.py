@@ -44,7 +44,8 @@ def register():
         return redirect(url_for("events.index"))
     values, errors = {}, {}
     if request.method == "POST":
-        rate_limit("register", 10, 3600)
+        # з одного IP (аудиторія/NAT) можуть реєструватися багато людей — ліміт лише проти ботів
+        rate_limit("register", 40, 3600)
         values, password, errors = _validate_register(request.form)
         if not errors:
             db = get_db()
@@ -70,9 +71,10 @@ def login():
     next_url = safe_next(request.values.get("next"))
     email = ""
     if request.method == "POST":
-        rate_limit("login", 10, 900)
         email = (request.form.get("email") or "").strip().lower()[:254]
         password = (request.form.get("password") or "")[:128]
+        # загальний ліміт на IP (спільний NAT) + жорсткий на пару IP+email проти підбору пароля
+        rate_limit("login", 60, 900)
         rate_limit(f"login-email:{email}", 10, 900)
         row = get_db().execute(
             "SELECT id, password_hash FROM users WHERE email = ?", (email,)

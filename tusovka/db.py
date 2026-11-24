@@ -58,6 +58,7 @@ def connect(path):
     # isolation_level=None: транзакції керуємо явно (BEGIN IMMEDIATE там, де треба атомарність)
     conn = sqlite3.connect(path, timeout=10, isolation_level=None)
     conn.row_factory = sqlite3.Row
+    conn.create_function("ulower", 1, lambda s: s.lower() if isinstance(s, str) else s, deterministic=True)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA busy_timeout = 10000")
     return conn

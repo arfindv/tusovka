@@ -31,10 +31,13 @@ ERROR_TEXT = {
 }
 
 
-def _load_dotenv(path=".env"):
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _load_dotenv(path=os.path.join(PROJECT_ROOT, ".env")):
     if not os.path.exists(path):
         return
-    with open(path, encoding="utf-8") as fh:
+    with open(path, encoding="utf-8-sig") as fh:
         for line in fh:
             line = line.strip()
             if not line or line.startswith("#") or "=" not in line:
@@ -58,11 +61,18 @@ def create_app(test_config=None):
         raise RuntimeError("SECRET_KEY must be at least 32 characters")
 
     instance = app.instance_path
+
+    def env_path(name, default):
+        value = os.environ.get(name, "").strip()
+        if not value:
+            return default
+        return value if os.path.isabs(value) else os.path.join(PROJECT_ROOT, value)
+
     app.config.update(
         SECRET_KEY=secret,
-        DATABASE_PATH=os.environ.get("DATABASE_PATH", os.path.join(instance, "tusovka.db")),
-        UPLOAD_DIR=os.environ.get("UPLOAD_DIR", os.path.join(instance, "uploads")),
-        APP_TIMEZONE=os.environ.get("APP_TIMEZONE", "Europe/Kyiv"),
+        DATABASE_PATH=env_path("DATABASE_PATH", os.path.join(instance, "tusovka.db")),
+        UPLOAD_DIR=env_path("UPLOAD_DIR", os.path.join(instance, "uploads")),
+        APP_TIMEZONE=os.environ.get("APP_TIMEZONE", "").strip() or "Europe/Kyiv",
         MAX_CONTENT_LENGTH=6 * 1024 * 1024,
         MAX_FORM_MEMORY_SIZE=1024 * 1024,
         MAX_FORM_PARTS=50,

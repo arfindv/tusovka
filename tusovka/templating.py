@@ -1,4 +1,5 @@
-from .validation import app_tz
+from .security import utcnow
+from .validation import app_tz, to_local_input
 
 MONTHS = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня",
           "серпня", "вересня", "жовтня", "листопада", "грудня"]
@@ -36,4 +37,7 @@ def register_filters(app):
 
     @app.context_processor
     def _ctx():
-        return {"tz_name": app.config["APP_TIMEZONE"]}
+        return {
+            "tz_name": app.config["APP_TIMEZONE"],
+            "now_local_input": lambda: to_local_input(utcnow()),
+        }

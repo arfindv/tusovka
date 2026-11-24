@@ -126,16 +126,18 @@ def index():
     params = [now_db()]
     where = "e.is_private = 0 AND e.starts_at > ?"
     if q:
-        where += " AND e.title LIKE ? ESCAPE '\\' COLLATE NOCASE"
-        params.append(f"%{_escape_like(q)}%")
+        # NOCASE у SQLite працює лише для латиниці — порівнюємо в нижньому регістрі через Python (Unicode)
+        where += " AND ulower(e.title) LIKE ? ESCAPE '\\'"
+        params.append(f"%{_escape_like(q.lower())}%")
     db = get_db()
     total = db.execute(f"SELECT COUNT(*) FROM events e WHERE {where}", params).fetchone()[0]
+    pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+    page = min(page, pages)
     rows = db.execute(
         f"""SELECT {EVENT_COLS} FROM events e JOIN users u ON u.id = e.author_id
             WHERE {where} ORDER BY e.starts_at ASC, e.id ASC LIMIT ? OFFSET ?""",
         [*params, PAGE_SIZE, (page - 1) * PAGE_SIZE],
     ).fetchall()
-    pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
     return render_template(
         "events/index.html",
         events=[decorate(r) for r in rows],

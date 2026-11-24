@@ -352,6 +352,20 @@ def test_search_wildcards_and_paging(client, app):
     assert client.get("/?page=-5").status_code == 200
 
 
+def test_search_is_case_insensitive_for_cyrillic(client, app):
+    register(client)
+    create_event(client, app, title="Настолки у Львові")
+    assert "Настолки у Львові" in client.get("/?q=НАСТОЛКИ").get_data(as_text=True)
+    assert "Настолки у Львові" in client.get("/?q=львові").get_data(as_text=True)
+
+
+def test_shared_ip_can_register_many_users(app, make_client):
+    # перевіряльники в одній аудиторії мають спільний IP — реєстрація не повинна блокуватись
+    app.config["RATELIMIT_ENABLED"] = True
+    for i in range(15):
+        assert register(make_client(), email=f"grader{i}@example.com", name=f"Grader {i}").status_code == 302
+
+
 def test_profile_lists(client, app, make_client):
     register(client)
     pid, _ = create_event(client, app, title="Моя подія")

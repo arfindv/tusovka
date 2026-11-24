@@ -4,7 +4,7 @@
 {% block title %}Майбутні події{% endblock %}
 {% block content %}
 <section class="hero">
-  <span class="eyebrow"><span class="eyebrow-dot"></span>{{ total }} {{ "подія" if total % 10 == 1 and total % 100 != 11 else ("події" if total % 10 in [2,3,4] and total % 100 not in [12,13,14] else "подій") }} попереду</span>
+  {% if not q %}<span class="eyebrow"><span class="eyebrow-dot"></span>{{ total }} {{ "подія" if total % 10 == 1 and total % 100 != 11 else ("події" if total % 10 in [2,3,4] and total % 100 not in [12,13,14] else "подій") }} попереду</span>{% endif %}
   <h1>Знайди свою <span class="hl">тусовку</span></h1>
   <p class="lead">Зустрічі, лекції, ігри та прогулянки поруч. Записуйся в один клік або збирай своїх людей.</p>
   <form class="search" method="get" action="{{ url_for('events.index') }}" role="search">
