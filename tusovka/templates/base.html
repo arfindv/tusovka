@@ -1,8 +1,10 @@
 <!doctype html>
+{% from "_icons.html" import icon %}
 <html lang="uk">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffcc00">
   <title>{% block title %}Тусовка{% endblock %} · Тусовка</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
@@ -13,16 +15,17 @@
     <div class="wrap topbar-inner">
       <a class="logo" href="{{ url_for('events.index') }}"><span class="logo-mark">Т</span>Тусовка</a>
       <nav class="nav" aria-label="Головне меню">
+        <a class="nav-link hide-sm" href="{{ url_for('events.index') }}">Події</a>
         {% if g.user %}
-          <a class="btn btn-primary btn-sm" href="{{ url_for('events.create') }}">+ Створити подію</a>
-          <a class="nav-link" href="{{ url_for('events.profile') }}">{{ g.user['name'] }}</a>
+          <a class="nav-link nav-user" href="{{ url_for('events.profile') }}"><span class="avatar" aria-hidden="true">{{ g.user['name'][:1] | upper }}</span><span class="hide-sm">{{ g.user['name'] }}</span></a>
           <form method="post" action="{{ url_for('auth.logout') }}" class="inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="nav-link linklike" type="submit">Вийти</button>
           </form>
+          <a class="btn btn-primary btn-sm" href="{{ url_for('events.create') }}">{{ icon('plus') }} Створити подію</a>
         {% else %}
           <a class="nav-link" href="{{ url_for('auth.login') }}">Увійти</a>
-          <a class="btn btn-primary btn-sm" href="{{ url_for('auth.register') }}">Реєстрація</a>
+          <a class="btn btn-dark btn-sm" href="{{ url_for('auth.register') }}">Реєстрація</a>
         {% endif %}
       </nav>
     </div>
@@ -40,7 +43,7 @@
   </main>
 
   <footer class="footer">
-    <div class="wrap">Тусовка — збирайтеся разом. Час подій: {{ tz_name }}.</div>
+    <div class="wrap"><span><b>Тусовка</b> — збирайтеся разом</span><span>Час подій: {{ tz_name }}</span></div>
   </footer>
 </body>
 </html>

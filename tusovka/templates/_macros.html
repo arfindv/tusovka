@@ -1,3 +1,4 @@
+{% from "_icons.html" import icon %}
 {% macro field_error(errors, name) -%}
   {% if errors.get(name) %}<p class="field-error" id="{{ name }}-error">{{ errors[name] }}</p>{% endif %}
 {%- endmacro %}
@@ -6,22 +7,26 @@
   {% if errors.get(name) %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}
 {%- endmacro %}
 
+{% macro placeholder(ev, big=False) -%}
+  <div class="cover-placeholder g{{ ev.public_id[-1:] | first_ord % 4 }}{% if big %} big{% endif %}" aria-hidden="true">{{ ev.title[:1] | upper }}</div>
+{%- endmacro %}
+
 {% macro event_card(ev) -%}
   <a class="card" href="{{ event_link(ev) }}">
     <div class="card-cover">
       {% if ev.cover %}
         <img src="{{ url_for('events.upload', name=ev.cover) }}" alt="" loading="lazy">
       {% else %}
-        <div class="cover-placeholder" aria-hidden="true">{{ ev.title[:1] | upper }}</div>
+        {{ placeholder(ev) }}
       {% endif %}
       <div class="date-badge"><b>{{ ev.starts_dt | day }}</b><span>{{ ev.starts_dt | mon }}</span></div>
-      {% if ev.is_private %}<span class="tag tag-dark">Приватна</span>{% endif %}
+      {% if ev.is_private %}<span class="tag tag-dark">{{ icon('lock') }} Приватна</span>{% endif %}
     </div>
     <div class="card-body">
       <h3>{{ ev.title }}</h3>
-      <p class="muted small">{{ ev.starts_dt | dt }}</p>
+      <div class="card-when">{{ icon('clock') }} {{ ev.starts_dt | dt }}</div>
       <div class="card-meta">
-        <span class="muted small">від {{ ev.author_name }}</span>
+        <span class="muted small">{{ ev.author_name }}</span>
         {% if ev.is_past %}
           <span class="pill pill-muted">Минула</span>
         {% elif ev.free == 0 %}

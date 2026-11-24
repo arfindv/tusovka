@@ -19,6 +19,10 @@ def register_filters(app):
     def fmt_mon(dt):
         return MONTHS[dt.astimezone(app_tz()).month - 1][:3]
 
+    @app.template_filter("first_ord")
+    def first_ord(s):
+        return ord(s[0]) if s else 0
+
     @app.template_filter("plural_seats")
     def plural_seats(n):
         n = int(n)

@@ -3,7 +3,9 @@
 {% block title %}Реєстрація{% endblock %}
 {% block content %}
 <div class="auth-card">
-  <h1>Реєстрація</h1>
+  <span class="logo-mark" aria-hidden="true">Т</span>
+  <h1>Створіть акаунт</h1>
+  <p class="muted">Це займе менше хвилини.</p>
   <form class="form" method="post" action="{{ url_for('auth.register') }}" novalidate>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label class="label" for="name">Ім'я <span class="muted small">(бачать інші учасники)</span></label>

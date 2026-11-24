@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% from "_macros.html" import placeholder %}
+{% from "_icons.html" import icon %}
 {% block title %}{{ ev.title }}{% endblock %}
 {% block content %}
 {% set invite_field %}{% if ev.invite %}<input type="hidden" name="invite" value="{{ ev.invite }}">{% endif %}{% endset %}
@@ -7,51 +9,53 @@
     {% if ev.cover %}
       <img src="{{ url_for('events.upload', name=ev.cover) }}" alt="Обкладинка події «{{ ev.title }}»">
     {% else %}
-      <div class="cover-placeholder big" aria-hidden="true">{{ ev.title[:1] | upper }}</div>
+      {{ placeholder(ev, big=True) }}
     {% endif %}
   </div>
 
   <div class="event-layout">
     <div class="event-main">
       <div class="tags">
-        {% if ev.is_private %}<span class="tag tag-dark">Приватна подія</span>{% else %}<span class="tag">Публічна подія</span>{% endif %}
+        {% if ev.is_private %}<span class="tag tag-dark">{{ icon('lock') }} Приватна подія</span>{% else %}<span class="tag tag-soft">{{ icon('globe') }} Публічна подія</span>{% endif %}
         {% if ev.is_past %}<span class="tag tag-muted">Вже минула</span>{% endif %}
       </div>
       <h1>{{ ev.title }}</h1>
-      <p class="muted">Організатор: <b>{{ ev.author_name }}</b></p>
+      <p class="host"><span class="avatar" aria-hidden="true">{{ ev.author_name[:1] | upper }}</span><span>Організатор: <b>{{ ev.author_name }}</b></span></p>
       <div class="description">{{ ev.description }}</div>
     </div>
 
     <aside class="event-side">
       <div class="panel">
         <div class="when">
-          <span class="when-icon" aria-hidden="true">🗓</span>
+          <span class="when-icon">{{ icon('calendar') }}</span>
           <div><b>{{ ev.starts_dt | dt }}</b><div class="muted small">{{ tz_name }}</div></div>
         </div>
         <div class="seats">
-          <div class="seats-num"><b>{{ ev.free }}</b> / {{ ev.capacity }}</div>
-          <div class="muted small">вільних місць</div>
+          <div class="seats-top">
+            <div class="seats-num"><b>{{ ev.free }}</b> / {{ ev.capacity }}</div>
+            <div class="muted small">вільних місць</div>
+          </div>
           <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="{{ ev.capacity }}" aria-valuenow="{{ ev.taken }}" aria-label="Зайнято місць">
             <span class="bar-fill w{{ ((ev.taken * 20) // ev.capacity) * 5 }}"></span>
           </div>
         </div>
 
         {% if ev.is_past %}
-          <p class="notice">Подія вже почалася або минула — запис закрито.</p>
+          <p class="notice">{{ icon('clock') }} Подія вже почалася — запис закрито.</p>
         {% elif not g.user %}
-          <a class="btn btn-primary btn-block" href="{{ url_for('auth.login', next=event_link(ev)) }}">Увійдіть, щоб записатися</a>
+          <a class="btn btn-primary btn-block btn-lg" href="{{ url_for('auth.login', next=event_link(ev)) }}">Увійдіть, щоб записатися</a>
         {% elif going %}
-          <p class="notice notice-ok">✓ Ви йдете на цю подію</p>
+          <p class="notice notice-ok">{{ icon('check') }} Ви йдете на цю подію</p>
           <form method="post" action="{{ url_for('events.leave', public_id=ev.public_id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{{ invite_field }}
             <button class="btn btn-ghost btn-block" type="submit">Скасувати запис</button>
           </form>
         {% elif ev.free == 0 %}
-          <p class="notice">Усі місця зайняті.</p>
+          <p class="notice">{{ icon('users') }} Усі місця зайняті.</p>
         {% else %}
           <form method="post" action="{{ url_for('events.join', public_id=ev.public_id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{{ invite_field }}
-            <button class="btn btn-primary btn-block btn-lg" type="submit">Іду!</button>
+            <button class="btn btn-primary btn-block btn-lg" type="submit">Іду! {{ icon('arrow') }}</button>
           </form>
         {% endif %}
       </div>
@@ -60,12 +64,12 @@
         <div class="panel">
           <h3>Керування</h3>
           {% if not ev.is_past %}
-            <a class="btn btn-dark btn-block" href="{{ url_for('events.edit', public_id=ev.public_id) }}">Редагувати</a>
+            <a class="btn btn-dark btn-block" href="{{ url_for('events.edit', public_id=ev.public_id) }}">Редагувати подію</a>
           {% endif %}
           {% if invite_url %}
-            <label class="label" for="invite-link">Посилання-запрошення</label>
+            <label class="label" for="invite-link">{{ icon('link') }} Посилання-запрошення</label>
             <input id="invite-link" class="copy" type="text" readonly value="{{ invite_url }}">
-            <p class="muted small">Подію бачать лише ті, хто має це посилання.</p>
+            <p class="hint">Подію бачать лише ті, хто має це посилання.</p>
             <form method="post" action="{{ url_for('events.regenerate_invite', public_id=ev.public_id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-ghost btn-block btn-sm" type="submit">Згенерувати нове посилання</button>
@@ -73,7 +77,7 @@
           {% endif %}
           <details class="danger-zone">
             <summary>Видалити подію</summary>
-            <p class="small">Подію, учасників і коментарі буде видалено назавжди.</p>
+            <p class="small muted">Подію, учасників і коментарі буде видалено назавжди.</p>
             <form method="post" action="{{ url_for('events.delete', public_id=ev.public_id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-danger btn-block" type="submit">Так, видалити</button>
@@ -84,11 +88,14 @@
         <div class="panel">
           <h3>Учасники ({{ participants | length }})</h3>
           {% if participants %}
-            <ol class="people">
-              {% for p in participants %}<li><span>{{ p.name }}</span><span class="muted small">{{ p.created_dt | dt }}</span></li>{% endfor %}
-            </ol>
+            <ul class="people">
+              {% for p in participants %}
+                <li><span class="avatar" aria-hidden="true">{{ p.name[:1] | upper }}</span>
+                  <span class="who"><b>{{ p.name }}</b><span class="muted small">записалися {{ p.created_dt | dt }}</span></span></li>
+              {% endfor %}
+            </ul>
           {% else %}
-            <p class="muted small">Ще ніхто не записався.</p>
+            <p class="muted small">Ще ніхто не записався. Поділіться посиланням!</p>
           {% endif %}
         </div>
       {% endif %}
@@ -96,23 +103,25 @@
   </div>
 
   <section class="comments" id="comments">
-    <h2>Коментарі ({{ comments | length }})</h2>
+    <h2>Коментарі <span class="count">{{ comments | length }}</span></h2>
     {% if comments %}
       <ul class="comment-list">
         {% for c in comments %}
           <li class="comment">
-            <div class="comment-head">
-              <span class="avatar" aria-hidden="true">{{ c.name[:1] | upper }}</span>
-              <b>{{ c.name }}</b>
-              <span class="muted small">{{ c.created_dt | dt }}</span>
-              {% if g.user and (g.user['id'] == c.user_id or is_author) %}
-                <form method="post" class="inline right" action="{{ url_for('events.delete_comment', public_id=ev.public_id, comment_id=c.id) }}">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{{ invite_field }}
-                  <button class="linklike small" type="submit">Видалити</button>
-                </form>
-              {% endif %}
+            <span class="avatar" aria-hidden="true">{{ c.name[:1] | upper }}</span>
+            <div class="comment-main">
+              <div class="comment-head">
+                <b>{{ c.name }}</b>
+                <span class="muted small">{{ c.created_dt | dt }}</span>
+                {% if g.user and (g.user['id'] == c.user_id or is_author) %}
+                  <form method="post" class="inline right" action="{{ url_for('events.delete_comment', public_id=ev.public_id, comment_id=c.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{{ invite_field }}
+                    <button class="linklike small" type="submit">Видалити</button>
+                  </form>
+                {% endif %}
+              </div>
+              <p class="comment-body">{{ c.body }}</p>
             </div>
-            <p class="comment-body">{{ c.body }}</p>
           </li>
         {% endfor %}
       </ul>
@@ -124,8 +133,8 @@
       <form class="comment-form" method="post" action="{{ url_for('events.add_comment', public_id=ev.public_id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{{ invite_field }}
         <label class="sr-only" for="body">Ваш коментар</label>
-        <textarea id="body" name="body" rows="3" maxlength="{{ comment_max }}" required placeholder="Ваш коментар…"></textarea>
-        <div class="form-row-end"><span class="muted small">до {{ comment_max }} символів</span><button class="btn btn-primary" type="submit">Надіслати</button></div>
+        <textarea id="body" name="body" rows="3" maxlength="{{ comment_max }}" required placeholder="Напишіть коментар…"></textarea>
+        <div class="form-row-end"><span class="muted small">до {{ comment_max }} символів</span><button class="btn btn-primary btn-sm" type="submit">Надіслати</button></div>
       </form>
     {% else %}
       <p><a href="{{ url_for('auth.login', next=event_link(ev)) }}">Увійдіть</a>, щоб коментувати.</p>

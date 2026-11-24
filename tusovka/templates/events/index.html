@@ -1,19 +1,22 @@
 {% extends "base.html" %}
 {% from "_macros.html" import event_card %}
+{% from "_icons.html" import icon %}
 {% block title %}Майбутні події{% endblock %}
 {% block content %}
 <section class="hero">
+  <span class="eyebrow"><span class="eyebrow-dot"></span>{{ total }} {{ "подія" if total % 10 == 1 and total % 100 != 11 else ("події" if total % 10 in [2,3,4] and total % 100 not in [12,13,14] else "подій") }} попереду</span>
   <h1>Знайди свою <span class="hl">тусовку</span></h1>
-  <p class="lead">Зустрічі, лекції, ігри та прогулянки поруч із тобою. Записуйся або створюй власну подію.</p>
+  <p class="lead">Зустрічі, лекції, ігри та прогулянки поруч. Записуйся в один клік або збирай своїх людей.</p>
   <form class="search" method="get" action="{{ url_for('events.index') }}" role="search">
+    {{ icon('search') }}
     <label class="sr-only" for="q">Пошук за назвою</label>
-    <input id="q" type="search" name="q" value="{{ q }}" maxlength="100" placeholder="Пошук за назвою події…">
-    <button class="btn btn-dark" type="submit">Шукати</button>
+    <input id="q" type="search" name="q" value="{{ q }}" maxlength="100" placeholder="Пошук за назвою події">
+    <button class="btn btn-primary" type="submit">Знайти</button>
   </form>
 </section>
 
 <div class="section-head">
-  <h2>{% if q %}Результати для «{{ q }}»{% else %}Майбутні події{% endif %}</h2>
+  <h2>{% if q %}Результати для «{{ q }}»{% else %}Найближчі події{% endif %}</h2>
   {% if q %}<a class="muted" href="{{ url_for('events.index') }}">Скинути пошук</a>{% endif %}
 </div>
 
@@ -30,7 +33,7 @@
   {% endif %}
 {% else %}
   <div class="empty">
-    <div class="empty-icon" aria-hidden="true">☀</div>
+    <div class="empty-icon">{{ icon('search' if q else 'spark') }}</div>
     {% if q %}
       <h3>Нічого не знайдено</h3>
       <p class="muted">Спробуйте іншу назву або подивіться всі події.</p>
@@ -38,7 +41,7 @@
       <h3>Поки що немає майбутніх подій</h3>
       <p class="muted">Станьте першим — створіть подію і покличте друзів.</p>
     {% endif %}
-    <a class="btn btn-primary" href="{{ url_for('events.create') }}">Створити подію</a>
+    <a class="btn btn-primary" href="{{ url_for('events.create') }}">{{ icon('plus') }} Створити подію</a>
   </div>
 {% endif %}
 {% endblock %}

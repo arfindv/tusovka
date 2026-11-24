@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import event_card %}
+{% from "_icons.html" import icon %}
 {% block title %}Мій профіль{% endblock %}
 {% block content %}
 <section class="profile-head">
@@ -15,7 +16,8 @@
   <div class="grid">{% for ev in joined %}{{ event_card(ev) }}{% endfor %}</div>
 {% else %}
   <div class="empty small-empty">
-    <p class="muted">Ви ще нікуди не записалися.</p>
+    <div class="empty-icon">{{ icon('calendar') }}</div>
+    <h3>Ви ще нікуди не записалися</h3>
     <a class="btn btn-ghost" href="{{ url_for('events.index') }}">Переглянути події</a>
   </div>
 {% endif %}
@@ -25,8 +27,9 @@
   <div class="grid">{% for ev in created %}{{ event_card(ev) }}{% endfor %}</div>
 {% else %}
   <div class="empty small-empty">
-    <p class="muted">Ви ще не створили жодної події.</p>
-    <a class="btn btn-primary" href="{{ url_for('events.create') }}">Створити подію</a>
+    <div class="empty-icon">{{ icon('spark') }}</div>
+    <h3>Ви ще не створили жодної події</h3>
+    <a class="btn btn-primary" href="{{ url_for('events.create') }}">{{ icon('plus') }} Створити подію</a>
   </div>
 {% endif %}
 {% endblock %}
